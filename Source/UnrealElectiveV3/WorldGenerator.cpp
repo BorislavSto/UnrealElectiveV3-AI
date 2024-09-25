@@ -1,6 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Kismet/KismetMathLibrary.h"
+#include "Landscape.h"
+#include "LandscapeInfo.h"
+#include "LandscapeEditorUtils.h"
+#include "LandscapeStreamingProxy.h"
 #include "WorldGenerator.h"
 
 AWorldGenerator* AWorldGenerator::Instance = nullptr;
@@ -34,7 +38,6 @@ void AWorldGenerator::BeginPlay()
     //GenerateWorldPerlinNoise(100, 100, 0.01f);
     //GenerateWorldDiamondSquare(6, 0.5f);
     GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
-
 }
 
 // Called every frame
@@ -258,6 +261,121 @@ void AWorldGenerator::GenerateWorldCellularAutomata(int32 Width, int32 Height, f
 
     CreateMesh(Vertices, Triangles);
 }
+
+// void AWorldGenerator::GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale)
+// {
+//     // Set up landscape configuration
+//     int32 QuadsPerSection = 63;
+//     int32 SectionsPerComponent = 1;
+//     int32 ComponentsX = FMath::CeilToInt(static_cast<float>(Width) / (QuadsPerSection * SectionsPerComponent));
+//     int32 ComponentsY = FMath::CeilToInt(static_cast<float>(Height) / (QuadsPerSection * SectionsPerComponent));
+//
+//     // Create heightmap data
+//     TArray<uint16> HeightData;
+//     HeightData.SetNumZeroed(Width * Height);
+//
+//     // Generate cellular automata grid
+//     TArray<TArray<bool>> Grid;
+//     GenerateCellularAutomataGrid(Grid, Width, Height, FillProbability);
+//
+//     // Apply heightmap data
+//     for (int32 Y = 0; Y < Height; ++Y)
+//     {
+//         for (int32 X = 0; X < Width; ++X)
+//         {
+//             float NoiseValue = FMath::PerlinNoise2D(FVector2D(X * NoiseScale, Y * NoiseScale));
+//             float CellularValue = Grid[Y][X] ? 1.0f : 0.0f;
+//             float HeightValue = FMath::Lerp(0.0f, MaxHeight, (NoiseValue + CellularValue) * 0.5f);
+//
+//             // Convert height to uint16 (Unreal's heightmap format)
+//             uint16 CompressedHeight = FMath::Clamp<uint16>(FMath::RoundToInt(HeightValue / MaxHeight * 65535.0f), 0, 65535);
+//             HeightData[Y * Width + X] = CompressedHeight;
+//         }
+//     }
+//
+//     // Create the landscape
+//     UWorld* World = GetWorld();
+//     if (World)
+//     {
+//         ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), FTransform::Identity);
+//         if (Landscape)
+//         {
+//             FGuid LandscapeGuid = FGuid::NewGuid();
+//
+//             // Create a heightmap info object
+//             TMap<FGuid, TArray<uint16>> HeightmapDataPerLayers;
+//             HeightmapDataPerLayers.Add(LandscapeGuid, HeightData);
+//
+//             // Create layer info
+//             TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayer;
+//             TArray<FLandscapeImportLayerInfo> LayerInfos;
+//             FLandscapeImportLayerInfo LayerInfo;
+//             LayerInfo.LayerName = TEXT("DefaultLayer");
+//             LayerInfos.Add(LayerInfo);
+//             MaterialLayerDataPerLayer.Add(LandscapeGuid, LayerInfos);
+//
+//             // Create the landscape
+//             Landscape->CreateLandscapeInfo();
+//             Landscape->Import(LandscapeGuid,
+//                 0, 0, ComponentsX - 1, ComponentsY - 1,
+//                 SectionsPerComponent, QuadsPerSection,
+//                 HeightmapDataPerLayers, MaterialLayerDataPerLayer,
+//                 ELandscapeImportAlphamapType::Additive);
+//
+//             // Optional: Add landscape material
+//             // Landscape->LandscapeMaterial = Your landscape material asset;
+//         }
+//     }
+// }
+//
+// void AWorldGenerator::GenerateCellularAutomataGrid(TArray<TArray<bool>>& Grid, int32 Width, int32 Height, float FillProbability)
+// {
+//     // Initialize grid
+//     Grid.SetNum(Height);
+//     for (auto& Row : Grid)
+//     {
+//         Row.SetNum(Width);
+//         for (auto& Cell : Row)
+//         {
+//             Cell = FMath::RandRange(0.0f, 1.0f) < FillProbability;
+//         }
+//     }
+//
+//     // Apply cellular automata rules (same as before)
+//     for (int32 Iteration = 0; Iteration < 5; ++Iteration)
+//     {
+//         TArray<TArray<bool>> NewGrid = Grid;
+//         for (int32 Y = 0; Y < Height; ++Y)
+//         {
+//             for (int32 X = 0; X < Width; ++X)
+//             {
+//                 int32 AliveNeighbors = 0;
+//                 for (int32 NY = -1; NY <= 1; ++NY)
+//                 {
+//                     for (int32 NX = -1; NX <= 1; ++NX)
+//                     {
+//                         if (NX == 0 && NY == 0) continue;
+//                         int32 CheckX = X + NX;
+//                         int32 CheckY = Y + NY;
+//                         if (CheckX >= 0 && CheckX < Width && CheckY >= 0 && CheckY < Height)
+//                         {
+//                             AliveNeighbors += Grid[CheckY][CheckX] ? 1 : 0;
+//                         }
+//                     }
+//                 }
+//                 if (Grid[Y][X])
+//                 {
+//                     NewGrid[Y][X] = AliveNeighbors >= 4;
+//                 }
+//                 else
+//                 {
+//                     NewGrid[Y][X] = AliveNeighbors >= 5;
+//                 }
+//             }
+//         }
+//         Grid = NewGrid;
+//     }
+// }
 
 void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>& Triangles)
 {

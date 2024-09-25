@@ -32,3 +32,8 @@ void AAdvancedNPC::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 }
 
+UBehaviorTree* AAdvancedNPC::GetBehaviorTree() const
+{
+	return Tree;
+}
+

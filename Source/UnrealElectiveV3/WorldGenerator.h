@@ -27,6 +27,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "World Generation")
 	void GenerateWorldCellularAutomata(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale);
+	
+	// UFUNCTION(BlueprintCallable, Category = "World Generation")
+	// void GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale);
+
+	// UFUNCTION(BlueprintCallable, Category = "World Generation")
+	// void GenerateCellularAutomataGrid(TArray<TArray<bool>>& Grid, int32 Width, int32 Height, float FillProbability);
 
 protected:
 	// Called when the game starts or when spawned
