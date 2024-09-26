@@ -2,6 +2,12 @@
 
 #include "AdvancedNPC_AIController.h"
 #include "AdvancedNPC.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Perception/AISenseConfig.h"
+#include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISense_Sight.h"
+#include "UnrealElectiveV3/UnrealElectiveV3Character.h"
 
 AAdvancedNPC_AIController::AAdvancedNPC_AIController(FObjectInitializer const& ObjectInitializer)
 {
@@ -20,5 +26,36 @@ void AAdvancedNPC_AIController::OnPossess(APawn* InPawn)
 			Blackboard = b;
 			RunBehaviorTree(tree);
 		}
+	}
+}
+
+void AAdvancedNPC_AIController::SetupPerceptionSystem()
+{
+	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
+	if (SightConfig)
+	{
+		SetPerceptionComponent(*CreateDefaultSubobject<UAIPerceptionComponent>(
+			TEXT("PerceptionComponent")));
+		SightConfig->SightRadius = 500.f;
+		SightConfig->LoseSightRadius = SightConfig->SightRadius + 25.f;
+		SightConfig->PeripheralVisionAngleDegrees = 90.f;
+		SightConfig->SetMaxAge(5.f);
+		SightConfig->AutoSuccessRangeFromLastSeenLocation = 520.f;
+		SightConfig->DetectionByAffiliation.bDetectEnemies = true;
+		SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+		SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
+
+		GetPerceptionComponent()->SetDominantSense(*SightConfig->GetSenseImplementation());
+		GetPerceptionComponent()->OnTargetPerceptionUpdated.AddDynamic(this, &AAdvancedNPC_AIController::OnTargetDetected);
+		GetPerceptionComponent()->ConfigureSense(*SightConfig);
+	}
+	
+}
+
+void AAdvancedNPC_AIController::OnTargetDetected(AActor* Actor, FAIStimulus const Stimulus)
+{
+	if (AUnrealElectiveV3Character* const ch = Cast<AUnrealElectiveV3Character>(Actor))
+	{
+		GetBlackboardComponent()->SetValueAsBool("CanSeePlayer", Stimulus.WasSuccessfullySensed());
 	}
 }
