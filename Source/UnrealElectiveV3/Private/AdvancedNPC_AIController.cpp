@@ -11,6 +11,7 @@
 
 AAdvancedNPC_AIController::AAdvancedNPC_AIController(FObjectInitializer const& ObjectInitializer)
 {
+	SetupPerceptionSystem();
 }
 
 void AAdvancedNPC_AIController::OnPossess(APawn* InPawn)
@@ -32,8 +33,11 @@ void AAdvancedNPC_AIController::OnPossess(APawn* InPawn)
 void AAdvancedNPC_AIController::SetupPerceptionSystem()
 {
 	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
+	UE_LOG(LogTemp, Log, TEXT("AAdvancedNPC_AIController before SightConfig"));
 	if (SightConfig)
 	{
+		UE_LOG(LogTemp, Log, TEXT("AAdvancedNPC_AIController after SightConfig"));
+
 		SetPerceptionComponent(*CreateDefaultSubobject<UAIPerceptionComponent>(
 			TEXT("PerceptionComponent")));
 		SightConfig->SightRadius = 500.f;
@@ -49,7 +53,6 @@ void AAdvancedNPC_AIController::SetupPerceptionSystem()
 		GetPerceptionComponent()->OnTargetPerceptionUpdated.AddDynamic(this, &AAdvancedNPC_AIController::OnTargetDetected);
 		GetPerceptionComponent()->ConfigureSense(*SightConfig);
 	}
-	
 }
 
 void AAdvancedNPC_AIController::OnTargetDetected(AActor* Actor, FAIStimulus const Stimulus)

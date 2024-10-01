@@ -41,7 +41,7 @@ void AWorldGenerator::BeginPlay()
     //GenerateWorldPerlinNoise(100, 100, 0.01f);
     //GenerateWorldDiamondSquare(6, 0.5f);
     //GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
-    GenerateLandscape();
+    //GenerateLandscape();
 }
 
 // Called every frame
@@ -328,26 +328,34 @@ void AWorldGenerator::GenerateLandscape()
         TMap<FGuid, TArray<uint16>> ImportHeightData;
         ImportHeightData.Add(LandscapeGuid, HeightData);
 
-        // Ensure height data was correctly added
+        // Check if height data is properly added
         if (!ImportHeightData.Contains(LandscapeGuid))
         {
             UE_LOG(LogTemp, Error, TEXT("Height data for landscape not found!"));
             return; // Prevent further execution
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Height data added successfully."));
         }
 
         // Prepare an empty material layer info map
         TMap<FGuid, TArray<FLandscapeImportLayerInfo>> ImportMaterialLayerInfos;
         ImportMaterialLayerInfos.Add(LandscapeGuid, TArray<FLandscapeImportLayerInfo>());
 
-        // Ensure material layer info was correctly added
+        // Check if material layer info is properly added
         if (!ImportMaterialLayerInfos.Contains(LandscapeGuid))
         {
             UE_LOG(LogTemp, Error, TEXT("Material layer info for landscape not found!"));
             return; // Prevent further execution
         }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Material layer info added successfully."));
+        }
 
-        // Import the landscape
-        bool bSuccess = Landscape->Import(
+        // Import the landscape and check for errors
+        Landscape->Import(
             LandscapeGuid,
             0, 0, SizeX - 1, SizeY - 1,
             SectionsPerComponent,
@@ -359,7 +367,7 @@ void AWorldGenerator::GenerateLandscape()
             nullptr // No import layers
         );
 
-        if (!bSuccess)
+        if (!Landscape)
         {
             UE_LOG(LogTemp, Error, TEXT("Landscape import failed."));
             return;

@@ -59,7 +59,8 @@ void AUnrealElectiveV3Character::SetupStimulusSource()
 	StimulusSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("Stimulus"));
 	if (StimulusSource)
 	{
-		StimulusSource->RegisterForSense(TSubclassOf<UAISense_Sight>());
+		UE_LOG(LogTemp, Log, TEXT("StimulusSource is true, in character"));
+        StimulusSource->RegisterForSense(UAISense_Sight::StaticClass());
 		StimulusSource->RegisterWithPerceptionSystem();
 	}
 }

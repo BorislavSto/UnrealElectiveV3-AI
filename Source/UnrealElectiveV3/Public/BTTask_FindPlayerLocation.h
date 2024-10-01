@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/Tasks/BTTask_BlackboardBase.h"
-#include "MyBTTask_FindPlayerLocation.generated.h"
+#include "BTTask_FindPlayerLocation.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class UNREALELECTIVEV3_API UMyBTTask_FindPlayerLocation : public UBTTask_BlackboardBase
+class UNREALELECTIVEV3_API UBTTask_FindPlayerLocation : public UBTTask_BlackboardBase
 {
 	GENERATED_BODY()
 
 public:
-	explicit UMyBTTask_FindPlayerLocation(const FObjectInitializer& ObjectInitializer);
+	explicit UBTTask_FindPlayerLocation(const FObjectInitializer& ObjectInitializer);
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 private:
