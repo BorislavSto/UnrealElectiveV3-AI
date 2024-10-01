@@ -5,6 +5,9 @@
 #include "LandscapeInfo.h"
 #include "LandscapeEditorUtils.h"
 #include "LandscapeStreamingProxy.h"
+#include "GameFramework/Actor.h"
+#include "Materials/MaterialInterface.h"
+#include "LandscapeLayerInfoObject.h"
 #include "WorldGenerator.h"
 
 AWorldGenerator* AWorldGenerator::Instance = nullptr;
@@ -37,7 +40,8 @@ void AWorldGenerator::BeginPlay()
 
     //GenerateWorldPerlinNoise(100, 100, 0.01f);
     //GenerateWorldDiamondSquare(6, 0.5f);
-    GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
+    //GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
+    GenerateLandscape();
 }
 
 // Called every frame
@@ -262,6 +266,147 @@ void AWorldGenerator::GenerateWorldCellularAutomata(int32 Width, int32 Height, f
     CreateMesh(Vertices, Triangles);
 }
 
+void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>& Triangles)
+{
+    TArray<FVector> Normals;
+    TArray<FVector2D> UV0;
+    TArray<FProcMeshTangent> Tangents;
+    TArray<FLinearColor> VertexColors;
+
+    MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
+}
+
+
+void AWorldGenerator::GenerateLandscape()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    // Define landscape size
+    int32 QuadsPerSection = 63;
+    int32 SectionsPerComponent = 1;
+    int32 ComponentCountX = 8;
+    int32 ComponentCountY = 8;
+    int32 QuadsPerComponent = QuadsPerSection * SectionsPerComponent;
+    int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
+    int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
+
+    // Create heightmap data
+    TArray<uint16> HeightData;
+    HeightData.SetNumUninitialized(SizeX * SizeY);
+
+    // Generate heightmap using Perlin noise
+    for (int32 Y = 0; Y < SizeY; Y++)
+    {
+        for (int32 X = 0; X < SizeX; X++)
+        {
+            float Height = 0.0f;
+            float Amplitude = 1.0f;
+            float Frequency = 0.01f;
+            for (int32 Octave = 0; Octave < 4; Octave++)
+            {
+                Height += Amplitude * FMath::PerlinNoise2D(FVector2D(X * Frequency, Y * Frequency));
+                Amplitude *= 0.5f;
+                Frequency *= 2.0f;
+            }
+            Height = FMath::Clamp(Height, -1.0f, 1.0f);
+            HeightData[Y * SizeX + X] = FMath::Clamp<uint16>((Height + 1.0f) * 32767.5f, 0, 65535);
+        }
+    }
+
+    // Spawn the landscape actor
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), FTransform::Identity, SpawnParams);
+
+    if (Landscape)
+    {
+        // Generate a new GUID for the landscape
+        FGuid LandscapeGuid = FGuid::NewGuid();
+
+        // Create height data map (GUID is the landscape's unique identifier)
+        TMap<FGuid, TArray<uint16>> ImportHeightData;
+        ImportHeightData.Add(LandscapeGuid, HeightData);
+
+        // Ensure height data was correctly added
+        if (!ImportHeightData.Contains(LandscapeGuid))
+        {
+            UE_LOG(LogTemp, Error, TEXT("Height data for landscape not found!"));
+            return; // Prevent further execution
+        }
+
+        // Prepare an empty material layer info map
+        TMap<FGuid, TArray<FLandscapeImportLayerInfo>> ImportMaterialLayerInfos;
+        ImportMaterialLayerInfos.Add(LandscapeGuid, TArray<FLandscapeImportLayerInfo>());
+
+        // Ensure material layer info was correctly added
+        if (!ImportMaterialLayerInfos.Contains(LandscapeGuid))
+        {
+            UE_LOG(LogTemp, Error, TEXT("Material layer info for landscape not found!"));
+            return; // Prevent further execution
+        }
+
+        // Import the landscape
+        bool bSuccess = Landscape->Import(
+            LandscapeGuid,
+            0, 0, SizeX - 1, SizeY - 1,
+            SectionsPerComponent,
+            QuadsPerSection,
+            ImportHeightData,
+            nullptr, // No heightmap filename
+            ImportMaterialLayerInfos,
+            ELandscapeImportAlphamapType::Additive,
+            nullptr // No import layers
+        );
+
+        if (!bSuccess)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Landscape import failed."));
+            return;
+        }
+
+        // Assign a material if one is set
+        if (LandscapeMaterial)
+        {
+            Landscape->LandscapeMaterial = LandscapeMaterial;
+        }
+
+        // Set landscape properties
+        Landscape->SetActorScale3D(FVector(100.0f, 100.0f, 100.0f)); // Scale the landscape
+        Landscape->MaxLODLevel = 8; // Set maximum LOD level
+        Landscape->bCastStaticShadow = true;
+        Landscape->bCastDynamicShadow = true;
+
+        // Foliage spawning (simplified for now, could be more detailed)
+        if (Landscape->GetLandscapeInfo())
+        {
+            for (const FMyFoliageTypeInfo& FoliageInfo : FoliageTypes)
+            {
+                UObject* FoliageTypeObj = StaticLoadObject(UObject::StaticClass(), nullptr, *FoliageInfo.FoliageTypePath);
+                if (FoliageTypeObj)
+                {
+                    // Implement foliage spawning logic here
+                    UE_LOG(LogTemp, Warning, TEXT("Loaded foliage type: %s"), *FoliageInfo.FoliageTypePath);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Failed to load foliage type: %s"), *FoliageInfo.FoliageTypePath);
+                }
+            }
+        }
+
+        // Apply landscape layers (if any are set)
+        if (Landscape->GetLandscapeInfo() && !LandscapeLayers.IsEmpty())
+        {
+            for (auto& Layer : LandscapeLayers)
+            {
+                Landscape->GetLandscapeInfo()->GetLayerInfoByName(Layer->LayerName);
+                // Paint the layers (logic for applying layers needs to be implemented)
+            }
+        }
+    }
+}
+
 // void AWorldGenerator::GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale)
 // {
 //     // Set up landscape configuration
@@ -376,13 +521,3 @@ void AWorldGenerator::GenerateWorldCellularAutomata(int32 Width, int32 Height, f
 //         Grid = NewGrid;
 //     }
 // }
-
-void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>& Triangles)
-{
-    TArray<FVector> Normals;
-    TArray<FVector2D> UV0;
-    TArray<FProcMeshTangent> Tangents;
-    TArray<FLinearColor> VertexColors;
-
-    MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
-}

@@ -4,8 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Materials/MaterialInterface.h"
+#include "LandscapeLayerInfoObject.h"
 #include "ProceduralMeshComponent/Public/ProceduralMeshComponent.h"
 #include "WorldGenerator.generated.h"
+
+USTRUCT(BlueprintType)
+struct FMyFoliageTypeInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString FoliageTypePath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Density;
+};
 
 UCLASS()
 class UNREALELECTIVEV3_API AWorldGenerator : public AActor
@@ -30,10 +44,22 @@ public:
 	
 	// UFUNCTION(BlueprintCallable, Category = "World Generation")
 	// void GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale);
-
+	//
 	// UFUNCTION(BlueprintCallable, Category = "World Generation")
 	// void GenerateCellularAutomataGrid(TArray<TArray<bool>>& Grid, int32 Width, int32 Height, float FillProbability);
 
+	UFUNCTION(BlueprintCallable, Category = "Landscape")
+	void GenerateLandscape();
+
+	UPROPERTY(EditAnywhere, Category = "Landscape")
+	UMaterialInterface* LandscapeMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "Landscape")
+	TArray<FMyFoliageTypeInfo> FoliageTypes;
+
+	UPROPERTY(EditAnywhere, Category = "Landscape")
+	TArray<ULandscapeLayerInfoObject*> LandscapeLayers;
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
