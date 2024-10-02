@@ -1,13 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Kismet/KismetMathLibrary.h"
 #include "Landscape.h"
-#include "LandscapeInfo.h"
-#include "LandscapeEditorUtils.h"
 #include "LandscapeStreamingProxy.h"
 #include "GameFramework/Actor.h"
-#include "Materials/MaterialInterface.h"
-#include "LandscapeLayerInfoObject.h"
 #include "WorldGenerator.h"
 
 AWorldGenerator* AWorldGenerator::Instance = nullptr;
@@ -20,6 +15,9 @@ AWorldGenerator::AWorldGenerator()
 
     MeshComponent = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
     RootComponent = MeshComponent;
+    MeshComponent->SetMobility(EComponentMobility::Static);
+    MeshComponent->SetSimulatePhysics(false);
+    MeshComponent->SetEnableGravity(false);
 }
 
 // Called when the game starts or when spawned
@@ -41,7 +39,7 @@ void AWorldGenerator::BeginPlay()
     //GenerateWorldPerlinNoise(100, 100, 0.01f);
     //GenerateWorldDiamondSquare(6, 0.5f);
     //GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
-    //GenerateLandscape();
+    GenerateLandscape();
 }
 
 // Called every frame
@@ -276,144 +274,66 @@ void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<i
     MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
 }
 
-
 void AWorldGenerator::GenerateLandscape()
 {
+    int32 Width = 513; // Heightmap width
+    int32 Height = 513; // Heightmap height
+    int32 SectionSize = 64; // Section size
+    int32 NumSections = Width / SectionSize;
+
     UWorld* World = GetWorld();
-    if (!World) return;
-
-    // Define landscape size
-    int32 QuadsPerSection = 63;
-    int32 SectionsPerComponent = 1;
-    int32 ComponentCountX = 8;
-    int32 ComponentCountY = 8;
-    int32 QuadsPerComponent = QuadsPerSection * SectionsPerComponent;
-    int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
-    int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
-
-    // Create heightmap data
-    TArray<uint16> HeightData;
-    HeightData.SetNumUninitialized(SizeX * SizeY);
-
-    // Generate heightmap using Perlin noise
-    for (int32 Y = 0; Y < SizeY; Y++)
+    if (!World) 
     {
-        for (int32 X = 0; X < SizeX; X++)
+        UE_LOG(LogTemp, Warning, TEXT("World is nullptr!"));
+        return;
+    }
+
+    // Create the landscape actor
+    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass());
+    if (!Landscape) 
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to spawn landscape actor!"));
+        return;
+    }
+
+    // Set the landscape's location
+    Landscape->SetActorLocation(FVector(0, 0, 0));
+
+    // Ensure the Landscape's root component is static
+    Landscape->GetRootComponent()->SetMobility(EComponentMobility::Static);
+
+    // Prepare landscape components
+    for (int32 X = 0; X < NumSections; ++X)
+    {
+        for (int32 Y = 0; Y < NumSections; ++Y)
         {
-            float Height = 0.0f;
-            float Amplitude = 1.0f;
-            float Frequency = 0.01f;
-            for (int32 Octave = 0; Octave < 4; Octave++)
-            {
-                Height += Amplitude * FMath::PerlinNoise2D(FVector2D(X * Frequency, Y * Frequency));
-                Amplitude *= 0.5f;
-                Frequency *= 2.0f;
-            }
-            Height = FMath::Clamp(Height, -1.0f, 1.0f);
-            HeightData[Y * SizeX + X] = FMath::Clamp<uint16>((Height + 1.0f) * 32767.5f, 0, 65535);
+            ULandscapeComponent* Component = NewObject<ULandscapeComponent>(Landscape);
+            Component->SetupAttachment(Landscape->GetRootComponent());
+
+            // Set the landscape component mobility to Static
+            Component->SetMobility(EComponentMobility::Static);
+
+            // Base coordinates for each landscape component
+            int32 SectionBaseX = X * SectionSize;
+            int32 SectionBaseY = Y * SectionSize;
+
+            // Initialize the landscape component with basic parameters
+            Component->Init(SectionBaseX, SectionBaseY, SectionSize, 1, SectionSize);
+
+            // Recreate the render state and add to the landscape
+            Component->RecreateRenderState_Concurrent();
+            Landscape->LandscapeComponents.Add(Component);
         }
     }
 
-    // Spawn the landscape actor
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.Owner = this;
-    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), FTransform::Identity, SpawnParams);
+    // Finalize the landscape setup
+    Landscape->PostEditChange();
+    Landscape->MarkPackageDirty(); // Mark package as dirty
 
-    if (Landscape)
-    {
-        // Generate a new GUID for the landscape
-        FGuid LandscapeGuid = FGuid::NewGuid();
-
-        // Create height data map (GUID is the landscape's unique identifier)
-        TMap<FGuid, TArray<uint16>> ImportHeightData;
-        ImportHeightData.Add(LandscapeGuid, HeightData);
-
-        // Check if height data is properly added
-        if (!ImportHeightData.Contains(LandscapeGuid))
-        {
-            UE_LOG(LogTemp, Error, TEXT("Height data for landscape not found!"));
-            return; // Prevent further execution
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Height data added successfully."));
-        }
-
-        // Prepare an empty material layer info map
-        TMap<FGuid, TArray<FLandscapeImportLayerInfo>> ImportMaterialLayerInfos;
-        ImportMaterialLayerInfos.Add(LandscapeGuid, TArray<FLandscapeImportLayerInfo>());
-
-        // Check if material layer info is properly added
-        if (!ImportMaterialLayerInfos.Contains(LandscapeGuid))
-        {
-            UE_LOG(LogTemp, Error, TEXT("Material layer info for landscape not found!"));
-            return; // Prevent further execution
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Material layer info added successfully."));
-        }
-
-        // Import the landscape and check for errors
-        Landscape->Import(
-            LandscapeGuid,
-            0, 0, SizeX - 1, SizeY - 1,
-            SectionsPerComponent,
-            QuadsPerSection,
-            ImportHeightData,
-            nullptr, // No heightmap filename
-            ImportMaterialLayerInfos,
-            ELandscapeImportAlphamapType::Additive,
-            nullptr // No import layers
-        );
-
-        if (!Landscape)
-        {
-            UE_LOG(LogTemp, Error, TEXT("Landscape import failed."));
-            return;
-        }
-
-        // Assign a material if one is set
-        if (LandscapeMaterial)
-        {
-            Landscape->LandscapeMaterial = LandscapeMaterial;
-        }
-
-        // Set landscape properties
-        Landscape->SetActorScale3D(FVector(100.0f, 100.0f, 100.0f)); // Scale the landscape
-        Landscape->MaxLODLevel = 8; // Set maximum LOD level
-        Landscape->bCastStaticShadow = true;
-        Landscape->bCastDynamicShadow = true;
-
-        // Foliage spawning (simplified for now, could be more detailed)
-        if (Landscape->GetLandscapeInfo())
-        {
-            for (const FMyFoliageTypeInfo& FoliageInfo : FoliageTypes)
-            {
-                UObject* FoliageTypeObj = StaticLoadObject(UObject::StaticClass(), nullptr, *FoliageInfo.FoliageTypePath);
-                if (FoliageTypeObj)
-                {
-                    // Implement foliage spawning logic here
-                    UE_LOG(LogTemp, Warning, TEXT("Loaded foliage type: %s"), *FoliageInfo.FoliageTypePath);
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("Failed to load foliage type: %s"), *FoliageInfo.FoliageTypePath);
-                }
-            }
-        }
-
-        // Apply landscape layers (if any are set)
-        if (Landscape->GetLandscapeInfo() && !LandscapeLayers.IsEmpty())
-        {
-            for (auto& Layer : LandscapeLayers)
-            {
-                Landscape->GetLandscapeInfo()->GetLayerInfoByName(Layer->LayerName);
-                // Paint the layers (logic for applying layers needs to be implemented)
-            }
-        }
-    }
+    // Log success
+    UE_LOG(LogTemp, Log, TEXT("Landscape created successfully with %d sections."), NumSections);
 }
+
 
 // void AWorldGenerator::GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale)
 // {
