@@ -2,6 +2,7 @@
 
 #include "Landscape.h"
 #include "LandscapeStreamingProxy.h"
+#include "LandscapeProxy.h"
 #include "GameFramework/Actor.h"
 #include "WorldGenerator.h"
 
@@ -276,62 +277,74 @@ void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<i
 
 void AWorldGenerator::GenerateLandscape()
 {
-    int32 Width = 513; // Heightmap width
-    int32 Height = 513; // Heightmap height
-    int32 SectionSize = 64; // Section size
-    int32 NumSections = Width / SectionSize;
+    FTransform LandscapeTransform = FTransform::Identity;
+    
+    TArray<FLandscapeImportLayerInfo> MaterialImportLayers;
+    TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
+    TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
 
+    int32 MinX = 0;
+    int32 MinY = 0;
+    int32 MaxX = 63; // Assuming a 64x64 resolution
+    int32 MaxY = 63; // Assuming a 64x64 resolution
+    int32 NumSubsections = 1;
+    int32 SubsectionSizeQuads = 63;
+    ELandscapeImportAlphamapType ImportType = ELandscapeImportAlphamapType::Layered;
+
+    TArray<uint16> HeightData;
+    HeightData.SetNum(MaxX * MaxY);
+    for (int32 i = 0; i < HeightData.Num(); i++)
+    {
+        HeightData[i] = 32768;
+    }
+
+    HeightDataPerLayers.Add(FGuid(), MoveTemp(HeightData));
+    MaterialLayerDataPerLayers.Add(FGuid(), MoveTemp(MaterialImportLayers));
+    
     UWorld* World = GetWorld();
-    if (!World) 
+    if (!World)
     {
-        UE_LOG(LogTemp, Warning, TEXT("World is nullptr!"));
+        UE_LOG(LogTemp, Error, TEXT("World is nullptr!"));
         return;
     }
 
-    // Create the landscape actor
-    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass());
-    if (!Landscape) 
+    // =======================
+    // Step 1: Create Main Landscape
+    // =======================
+    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform);
+    if (!Landscape)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Failed to spawn landscape actor!"));
+        UE_LOG(LogTemp, Error, TEXT("Failed to spawn Landscape!"));
         return;
     }
 
-    // Set the landscape's location
-    Landscape->SetActorLocation(FVector(0, 0, 0));
-
-    // Ensure the Landscape's root component is static
-    Landscape->GetRootComponent()->SetMobility(EComponentMobility::Static);
-
-    // Prepare landscape components
-    for (int32 X = 0; X < NumSections; ++X)
-    {
-        for (int32 Y = 0; Y < NumSections; ++Y)
-        {
-            ULandscapeComponent* Component = NewObject<ULandscapeComponent>(Landscape);
-            Component->SetupAttachment(Landscape->GetRootComponent());
-
-            // Set the landscape component mobility to Static
-            Component->SetMobility(EComponentMobility::Static);
-
-            // Base coordinates for each landscape component
-            int32 SectionBaseX = X * SectionSize;
-            int32 SectionBaseY = Y * SectionSize;
-
-            // Initialize the landscape component with basic parameters
-            Component->Init(SectionBaseX, SectionBaseY, SectionSize, 1, SectionSize);
-
-            // Recreate the render state and add to the landscape
-            Component->RecreateRenderState_Concurrent();
-            Landscape->LandscapeComponents.Add(Component);
-        }
-    }
-
-    // Finalize the landscape setup
+    Landscape->bCanHaveLayersContent;
+    Landscape->LandscapeMaterial;
+    Landscape->StaticLightingLOD;
+    ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+    LandscapeInfo->UpdateLayerInfoMap(Landscape);
+    Landscape->RegisterAllComponents();
+    Landscape->GetClass();
     Landscape->PostEditChange();
-    Landscape->MarkPackageDirty(); // Mark package as dirty
+    
+    // Set Landscape GUID if needed
+    Landscape->SetLandscapeGuid(FGuid::NewGuid());
 
-    // Log success
-    UE_LOG(LogTemp, Log, TEXT("Landscape created successfully with %d sections."), NumSections);
+    // Import the landscape data
+    Landscape->Import(
+        Landscape->GetLandscapeGuid(),      // Landscape GUID
+        MinX,                               // MinX
+        MinY,                               // MinY
+        MaxX,                               // MaxX
+        MaxY,                               // MaxY
+        NumSubsections,                     // Number of subsections
+        SubsectionSizeQuads,               // Size of each subsection in quads
+        HeightDataPerLayers,                     // Heightmap data
+        nullptr,                            // Heightmap file name (not used)
+        MaterialLayerDataPerLayers,                 // Material layer data
+        ImportType                          // Import type
+    );
+    
 }
 
 
