@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "WalkToPointsAI.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "GameFramework/Character.h"
 #include "AdvancedNPC.generated.h"
@@ -29,4 +30,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI", meta=(AllowPrivateAccess="true"))
 	UBehaviorTree* Tree;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI", meta=(AllowPrivateAccess="true"))
+	AWalkToPointsAI* WalkToPoints;
+
 };

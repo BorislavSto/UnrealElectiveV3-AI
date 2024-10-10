@@ -40,7 +40,7 @@ void AWorldGenerator::BeginPlay()
     //GenerateWorldPerlinNoise(100, 100, 0.01f);
     //GenerateWorldDiamondSquare(6, 0.5f);
     //GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
-    GenerateLandscape();
+    //GenerateLandscape();
 }
 
 // Called every frame
