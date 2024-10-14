@@ -6,8 +6,10 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInterface.h"
 #include "LandscapeLayerInfoObject.h"
-#include "ProceduralMeshComponent/Public/ProceduralMeshComponent.h"
+
 #include "WorldGenerator.generated.h"
+
+class UProceduralMeshComponent;
 
 USTRUCT(BlueprintType)
 struct FMyFoliageTypeInfo
@@ -47,9 +49,6 @@ public:
 	//
 	// UFUNCTION(BlueprintCallable, Category = "World Generation")
 	// void GenerateCellularAutomataGrid(TArray<TArray<bool>>& Grid, int32 Width, int32 Height, float FillProbability);
-
-	UFUNCTION(BlueprintCallable, Category = "Landscape")
-	void GenerateLandscape();
 
 	UPROPERTY(EditAnywhere, Category = "Landscape")
 	UMaterialInterface* LandscapeMaterial;

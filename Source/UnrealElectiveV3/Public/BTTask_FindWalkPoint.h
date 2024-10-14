@@ -13,5 +13,13 @@ UCLASS()
 class UNREALELECTIVEV3_API UBTTask_FindWalkPoint : public UBTTask_BlackboardBase
 {
 	GENERATED_BODY()
-	
+
+public:
+	explicit UBTTask_FindWalkPoint(FObjectInitializer const& ObjectInitializer);
+	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+private:
+	UPROPERTY(EditAnywhere, Category="Blackboard", meta=(AllowPrivateAccess=true))
+	FBlackboardKeySelector WalkPointsVectors;
+		
 };

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class UnrealElectiveV3 : ModuleRules
 {
@@ -18,12 +19,14 @@ public class UnrealElectiveV3 : ModuleRules
             "AIModule",
             "Niagara",
             "EnhancedInput",
-            "ProceduralMeshComponent",
             "Landscape",
             "LandscapeEditor",
             "AIModule",
             "GameplayTasks",
             "NavigationSystem",
+            "ProceduralMeshComponent",
         });
+        
+        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "../../ThirdParty/FastNoise/Cpp"));
     }
 }

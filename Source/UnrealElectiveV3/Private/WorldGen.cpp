@@ -1,8 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
-#include "Kismet/KismetMathLibrary.h"
-//#include "ProceduralMeshComponent/Public/ProceduralMeshComponent.h"
 #include "WorldGen.h"
 
 UWorldGen::UWorldGen() 
@@ -198,5 +195,5 @@ void UWorldGen::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>&
     TArray<FProcMeshTangent> Tangents;
     TArray<FLinearColor> VertexColors;
 
-    MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
+    //MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
 }

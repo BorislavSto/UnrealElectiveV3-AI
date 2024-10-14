@@ -1,10 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Landscape.h"
-#include "LandscapeStreamingProxy.h"
-#include "LandscapeProxy.h"
-#include "GameFramework/Actor.h"
 #include "WorldGenerator.h"
+
+#include "ProceduralMeshComponent/Public/ProceduralMeshComponent.h"
 
 AWorldGenerator* AWorldGenerator::Instance = nullptr;
 
@@ -37,7 +35,7 @@ void AWorldGenerator::BeginPlay()
         Destroy();
     }
 
-    //GenerateWorldPerlinNoise(100, 100, 0.01f);
+    GenerateWorldPerlinNoise(100, 100, 0.08f);
     //GenerateWorldDiamondSquare(6, 0.5f);
     //GenerateWorldCellularAutomata(100, 100, 0.4f, 500.0f, 0.1f);
     //GenerateLandscape();
@@ -272,193 +270,21 @@ void AWorldGenerator::CreateMesh(const TArray<FVector>& Vertices, const TArray<i
     TArray<FProcMeshTangent> Tangents;
     TArray<FLinearColor> VertexColors;
 
+    Normals.SetNum(Vertices.Num());
+    for (int32 i = 0; i < Vertices.Num(); i++)
+    {
+        Normals[i] = FVector(0.0f, 0.0f, 1.0f);  // All normals point upwards
+    }
+    
+    VertexColors.SetNum(Vertices.Num());
+    for (int32 i = 0; i < Vertices.Num(); i++)
+    {
+        VertexColors[i] = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f);  // Red (R=1, G=0, B=0, A=1)
+    }
+
     MeshComponent->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, true);
+    MeshComponent->SetCastShadow(true);  // Ensure shadows are enabled
+    MeshComponent->bCastDynamicShadow = true;  // Enable dynamic shadows
+    MeshComponent->SetMaterial(0, LandscapeMaterial);
 }
 
-void AWorldGenerator::GenerateLandscape()
-{
-    FTransform LandscapeTransform = FTransform::Identity;
-    
-    TArray<FLandscapeImportLayerInfo> MaterialImportLayers;
-    TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
-    TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
-
-    int32 MinX = 0;
-    int32 MinY = 0;
-    int32 MaxX = 63; // Assuming a 64x64 resolution
-    int32 MaxY = 63; // Assuming a 64x64 resolution
-    int32 NumSubsections = 1;
-    int32 SubsectionSizeQuads = 63;
-    ELandscapeImportAlphamapType ImportType = ELandscapeImportAlphamapType::Layered;
-
-    TArray<uint16> HeightData;
-    HeightData.SetNum(MaxX * MaxY);
-    for (int32 i = 0; i < HeightData.Num(); i++)
-    {
-        HeightData[i] = 32768;
-    }
-
-    HeightDataPerLayers.Add(FGuid(), MoveTemp(HeightData));
-    MaterialLayerDataPerLayers.Add(FGuid(), MoveTemp(MaterialImportLayers));
-    
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        UE_LOG(LogTemp, Error, TEXT("World is nullptr!"));
-        return;
-    }
-
-    // =======================
-    // Step 1: Create Main Landscape
-    // =======================
-    ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform);
-    if (!Landscape)
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to spawn Landscape!"));
-        return;
-    }
-
-    Landscape->bCanHaveLayersContent;
-    Landscape->LandscapeMaterial;
-    Landscape->StaticLightingLOD;
-    ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-    LandscapeInfo->UpdateLayerInfoMap(Landscape);
-    Landscape->RegisterAllComponents();
-    Landscape->GetClass();
-    Landscape->PostEditChange();
-    
-    // Set Landscape GUID if needed
-    Landscape->SetLandscapeGuid(FGuid::NewGuid());
-
-    // Import the landscape data
-    Landscape->Import(
-        Landscape->GetLandscapeGuid(),      // Landscape GUID
-        MinX,                               // MinX
-        MinY,                               // MinY
-        MaxX,                               // MaxX
-        MaxY,                               // MaxY
-        NumSubsections,                     // Number of subsections
-        SubsectionSizeQuads,               // Size of each subsection in quads
-        HeightDataPerLayers,                     // Heightmap data
-        nullptr,                            // Heightmap file name (not used)
-        MaterialLayerDataPerLayers,                 // Material layer data
-        ImportType                          // Import type
-    );
-    
-}
-
-
-// void AWorldGenerator::GenerateWorldWithLandscape(int32 Width, int32 Height, float FillProbability, float MaxHeight, float NoiseScale)
-// {
-//     // Set up landscape configuration
-//     int32 QuadsPerSection = 63;
-//     int32 SectionsPerComponent = 1;
-//     int32 ComponentsX = FMath::CeilToInt(static_cast<float>(Width) / (QuadsPerSection * SectionsPerComponent));
-//     int32 ComponentsY = FMath::CeilToInt(static_cast<float>(Height) / (QuadsPerSection * SectionsPerComponent));
-//
-//     // Create heightmap data
-//     TArray<uint16> HeightData;
-//     HeightData.SetNumZeroed(Width * Height);
-//
-//     // Generate cellular automata grid
-//     TArray<TArray<bool>> Grid;
-//     GenerateCellularAutomataGrid(Grid, Width, Height, FillProbability);
-//
-//     // Apply heightmap data
-//     for (int32 Y = 0; Y < Height; ++Y)
-//     {
-//         for (int32 X = 0; X < Width; ++X)
-//         {
-//             float NoiseValue = FMath::PerlinNoise2D(FVector2D(X * NoiseScale, Y * NoiseScale));
-//             float CellularValue = Grid[Y][X] ? 1.0f : 0.0f;
-//             float HeightValue = FMath::Lerp(0.0f, MaxHeight, (NoiseValue + CellularValue) * 0.5f);
-//
-//             // Convert height to uint16 (Unreal's heightmap format)
-//             uint16 CompressedHeight = FMath::Clamp<uint16>(FMath::RoundToInt(HeightValue / MaxHeight * 65535.0f), 0, 65535);
-//             HeightData[Y * Width + X] = CompressedHeight;
-//         }
-//     }
-//
-//     // Create the landscape
-//     UWorld* World = GetWorld();
-//     if (World)
-//     {
-//         ALandscape* Landscape = World->SpawnActor<ALandscape>(ALandscape::StaticClass(), FTransform::Identity);
-//         if (Landscape)
-//         {
-//             FGuid LandscapeGuid = FGuid::NewGuid();
-//
-//             // Create a heightmap info object
-//             TMap<FGuid, TArray<uint16>> HeightmapDataPerLayers;
-//             HeightmapDataPerLayers.Add(LandscapeGuid, HeightData);
-//
-//             // Create layer info
-//             TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayer;
-//             TArray<FLandscapeImportLayerInfo> LayerInfos;
-//             FLandscapeImportLayerInfo LayerInfo;
-//             LayerInfo.LayerName = TEXT("DefaultLayer");
-//             LayerInfos.Add(LayerInfo);
-//             MaterialLayerDataPerLayer.Add(LandscapeGuid, LayerInfos);
-//
-//             // Create the landscape
-//             Landscape->CreateLandscapeInfo();
-//             Landscape->Import(LandscapeGuid,
-//                 0, 0, ComponentsX - 1, ComponentsY - 1,
-//                 SectionsPerComponent, QuadsPerSection,
-//                 HeightmapDataPerLayers, MaterialLayerDataPerLayer,
-//                 ELandscapeImportAlphamapType::Additive);
-//
-//             // Optional: Add landscape material
-//             // Landscape->LandscapeMaterial = Your landscape material asset;
-//         }
-//     }
-// }
-//
-// void AWorldGenerator::GenerateCellularAutomataGrid(TArray<TArray<bool>>& Grid, int32 Width, int32 Height, float FillProbability)
-// {
-//     // Initialize grid
-//     Grid.SetNum(Height);
-//     for (auto& Row : Grid)
-//     {
-//         Row.SetNum(Width);
-//         for (auto& Cell : Row)
-//         {
-//             Cell = FMath::RandRange(0.0f, 1.0f) < FillProbability;
-//         }
-//     }
-//
-//     // Apply cellular automata rules (same as before)
-//     for (int32 Iteration = 0; Iteration < 5; ++Iteration)
-//     {
-//         TArray<TArray<bool>> NewGrid = Grid;
-//         for (int32 Y = 0; Y < Height; ++Y)
-//         {
-//             for (int32 X = 0; X < Width; ++X)
-//             {
-//                 int32 AliveNeighbors = 0;
-//                 for (int32 NY = -1; NY <= 1; ++NY)
-//                 {
-//                     for (int32 NX = -1; NX <= 1; ++NX)
-//                     {
-//                         if (NX == 0 && NY == 0) continue;
-//                         int32 CheckX = X + NX;
-//                         int32 CheckY = Y + NY;
-//                         if (CheckX >= 0 && CheckX < Width && CheckY >= 0 && CheckY < Height)
-//                         {
-//                             AliveNeighbors += Grid[CheckY][CheckX] ? 1 : 0;
-//                         }
-//                     }
-//                 }
-//                 if (Grid[Y][X])
-//                 {
-//                     NewGrid[Y][X] = AliveNeighbors >= 4;
-//                 }
-//                 else
-//                 {
-//                     NewGrid[Y][X] = AliveNeighbors >= 5;
-//                 }
-//             }
-//         }
-//         Grid = NewGrid;
-//     }
-// }
