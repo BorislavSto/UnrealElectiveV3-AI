@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AdvancedNPC.h"
 #include "GameFramework/Actor.h"
 #include "TribeData.h"
 #include "Tribe.generated.h"
@@ -41,7 +42,8 @@ public:
     UStaticMesh* HutMesh;
 
     UPROPERTY(VisibleAnywhere, Category = "Tribe")
-    USkeletalMesh* MemberMesh;
+    TSubclassOf<AAdvancedNPC> NPCBlueprint;
+//* MemberMesh;
 
     UPROPERTY()
     TMap<ATribe*, ERelationType> Relations;

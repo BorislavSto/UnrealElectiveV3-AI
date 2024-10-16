@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AdvancedNPC.h"
 #include "TribeData.generated.h"
 
 UENUM(BlueprintType)
@@ -44,7 +45,8 @@ struct FTribePreset
 	UStaticMesh* HutMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USkeletalMesh* MemberMesh;
+	TSubclassOf<AAdvancedNPC> NPCBlueprint;
+//* MemberMesh;
 };
 
 UCLASS(Blueprintable)

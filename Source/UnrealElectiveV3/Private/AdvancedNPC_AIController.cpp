@@ -26,6 +26,7 @@ void AAdvancedNPC_AIController::OnPossess(APawn* InPawn)
 			UseBlackboard(tree->BlackboardAsset, b);
 			Blackboard = b;
 			RunBehaviorTree(tree);
+			UE_LOG(LogTemp, Warning, TEXT("BehaviorTree or BlackboardComponent is not missing!"));
 		}
 	}
 }

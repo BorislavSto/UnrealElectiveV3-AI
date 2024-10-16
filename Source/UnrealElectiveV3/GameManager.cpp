@@ -15,7 +15,8 @@ void AGameManager::BeginPlay()
 {
 	Super::BeginPlay();
 	
-    InitializeGame();
+	InitializeTribes();
+	InitializeGame();
 }
 
 
@@ -23,7 +24,6 @@ void AGameManager::BeginPlay()
 void AGameManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	InitializeTribes();
 }
 
 void AGameManager::InitializeGame()
