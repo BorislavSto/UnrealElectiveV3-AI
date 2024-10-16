@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TribeData.h"
 #include "GameFramework/Actor.h"
 #include "GameManager.generated.h"
 
@@ -18,21 +19,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Management")
 	void InitializeGame();
 
-	UFUNCTION(BlueprintCallable, Category = "World Generation")
-	class UWorldGen* GetWorldGenerator();
+	UFUNCTION(BlueprintCallable, Category = "Game Setup")
+	void InitializeTribes();
+
+	UFUNCTION(BlueprintCallable, Category = "Game Setup")
+	void GenerateLandscape();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tribes")
+	TArray<FTribePreset> TribePresets;
+
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
 private:
 	UPROPERTY()
-	class UWorldGen* WorldGenerator;
+	TArray<ATribe*> Tribes;
 
-	void CreateWorldGenerator();
+	void SetupTribalRelations();
+
+private:
 
 };
